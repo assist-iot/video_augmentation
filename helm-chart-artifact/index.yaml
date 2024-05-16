@@ -1,0 +1,14 @@
+apiVersion: v1
+entries:
+  videoaugmentation:
+  - apiVersion: v2
+    appVersion: 0.1.0
+    created: "2024-05-16T08:48:06.3776517+02:00"
+    description: Video augmentation Helm chart
+    digest: e15a5bb4ee723311f978b99cf80afea394bb2f52447ecd0444120d8960c11492
+    name: videoaugmentation
+    type: application
+    urls:
+    - videoaugmentation-0.1.0.tgz
+    version: 0.1.0
+generated: "2024-05-16T08:48:06.3728088+02:00"
