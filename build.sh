@@ -1,0 +1,1 @@
+docker build -t test_env --build-arg VARIANT=-gpu --build-arg TF_VERSION=2.11.0 .

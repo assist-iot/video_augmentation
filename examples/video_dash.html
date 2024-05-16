@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Reproductor de video MPEG-DASH</title>
+    <!-- Incluye la biblioteca dash.js -->
+
+    <style>
+      video {
+        width: 1024px;
+        height: 576px;
+      }
+    </style>
+</head>
+<body>
+    <!-- Agrega un contenedor donde se incrustará el reproductor -->
+    <div>
+    <video id="videoPlayer" controls></video>
+  </div>
+  <script src="http://cdn.dashjs.org/latest/dash.all.min.js"></script>
+    <script>
+      (function() {
+        const url = "http://localhost:8888/rtg01/dual/stream.mpd";
+        // Configura el reproductor de video dash.js
+        const player = dashjs.MediaPlayer().create();
+        player.initialize(document.querySelector("#videoPlayer"),url, true );
+      })();
+    </script>
+</body>
+</html>

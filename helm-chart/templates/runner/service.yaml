@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "runner.fullname" . }}
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    {{- include "runner.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.runner.service.type }}
+  ports:
+    - name: port1
+      port: {{ .Values.runner.service.ports.port1.port }}
+      targetPort: {{ .Values.runner.service.ports.port1.targetPort }}
+      protocol: {{ .Values.runner.service.ports.port1.protocol }}
+      {{- if and (or (eq .Values.runner.service.type "NodePort") (eq .Values.runner.service.type "LoadBalancer")) (not (empty .Values.runner.service.ports.port1.nodePort)) }}
+      nodePort: {{ .Values.runner.service.ports.port1.nodePort }}
+      {{- end }}
+  selector:
+    {{- include "runner.selectorLabels" . | nindent 4 }}

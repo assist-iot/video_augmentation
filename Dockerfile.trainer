@@ -1,0 +1,86 @@
+# syntax=docker/dockerfile:1
+
+# Comments are provided throughout this file to help you get started.
+# If you need more help, visit the Dockerfile reference guide at
+# https://docs.docker.com/go/dockerfile-reference/
+
+# Want to help us make this template better? Share your feedback here: https://forms.gle/ybq9Krt8jtBL3iCk7
+
+ARG TF_VERSION=2.11.0
+ARG VARIANT=
+FROM tensorflow/tensorflow:${TF_VERSION}${VARIANT}-jupyter AS base
+
+# Prevents Python from writing pyc files.
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Keeps Python from buffering stdout and stderr to avoid situations where
+# the application crashes without emitting any logs due to buffering.
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /home/tensorflow/tmp
+
+# Create a non-privileged user that the app will run under.
+# See https://docs.docker.com/go/dockerfile-user-best-practices/
+ARG UID=10001
+RUN adduser \
+  --disabled-password \
+  --gecos "" \
+  --home "/nonexistent" \
+  --shell "/sbin/nologin" \
+  --no-create-home \
+  --uid "${UID}" \
+  tensorflow
+
+VOLUME /home/tensorflow/datasets
+VOLUME /home/tensorflow/models
+VOLUME /home/tensorflow/notebook
+
+# ubuntu 18.04 docker image is broken due to nvidia cuda repositories so remove them before apt-get update (https://forums.developer.nvidia.com/t/18-04-cuda-docker-image-is-broken/212892/9)
+RUN rm -f /etc/apt/sources.list.d/cuda.list && rm -f /etc/apt/sources.list.d/nvidia-ml.list
+
+# Install required libs
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends git libgl1 libglib2.0-0 protobuf-compiler wget \
+  && apt-get clean
+
+# Redefine the arg so it can be used inside de build script
+ARG TF_VERSION=$TF_VERSION
+
+# Install object detection package
+RUN git clone --depth 1 --filter=tree:0 https://github.com/tensorflow/models.git \
+  && cd ./models/research  \
+  # specify that the repo should be checkedout as sparse on the "research" folder
+  && git sparse-checkout set --no-cone research \
+  # checkout files
+  && git checkout \
+  # compile protobufs
+  && protoc object_detection/protos/*.proto --python_out=. \
+  # install python libraries for the object detection framework
+  && cp object_detection/packages/tf2/setup.py . \
+  && ls -la \
+  # fix version of tf-models-official, since later ones will break the compilation
+  #&& sed -i "s/'tf-models-official[>~=]=.*'/'tf-models-official==2.5.1'/" ./setup.py  \
+  && sed -i -r "s/'tf-models-official[>~=]=.*'/'tf-models-official==$TF_VERSION'/" ./setup.py  \
+  # install object detection libraries
+  && cat setup.py \
+  && python -m pip install . --no-cache-dir \
+  # Downgrade to default TF version  
+  && echo "Intalling tensorflow $TF_VERSION" \
+  && python -m pip install tensorflow[and-cuda]==$TF_VERSION \  
+  # Download pre-trained model
+  && wget http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_resnet50_v1_fpn_640x640_coco17_tpu-8.tar.gz \
+  && mkdir -p /home/tensorflow/models \
+  && tar -xf ssd_resnet50_v1_fpn_640x640_coco17_tpu-8.tar.gz -C /home/tensorflow/models/  \
+  # remove models directory, since it is no longer necessary
+  && cd /home/tensorflow \
+  && rm -rf tmp \
+  # Remove this library to run tensorflow in docker (https://stackoverflow.com/questions/65405705/undefined-symbol-zn10tensorflow8opkernel11tracestringepns-15opkernelcontexteb)
+  && rm -rf /usr/local/lib/python*/dist-packages/tensorflow/core/kernels/libtfkernel_sobol_op.so 
+
+# Switch to the non-privileged user to run the application.
+#USER tensorflow
+WORKDIR /home/tensorflow
+
+# Expose the port that jupyter listens on.
+EXPOSE 8888
+CMD ["bash","-c","source /etc/bash.bashrc && jupyter notebook --notebook-dir=/home/tensorflow/notebook --ip 0.0.0.0 --no-browser --allow-root"	]

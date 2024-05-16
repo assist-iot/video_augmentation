@@ -1,0 +1,8 @@
+volumes/
+*.exe
+**/__pycache__/*
+.vscode
+temp/
+samples/
+hls-files/
+*.7z

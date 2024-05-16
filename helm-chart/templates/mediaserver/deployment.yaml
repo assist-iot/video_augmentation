@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mediaserver.fullname" . }}
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    {{- include "mediaserver.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.mediaserver.autoscaling.enabled }}
+  replicas: {{ .Values.mediaserver.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "mediaserver.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "mediaserver.labels" . | nindent 8 }}
+    spec:
+      {{- with .Values.mediaserver.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.enablerNodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if not .Values.enablerNodeSelector }}
+        {{- with .Values.mediaserver.nodeSelector }}
+      nodeSelector:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- end }}
+      {{- with .Values.mediaserver.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.mediaserver.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.mediaserver.podSecurityContext | nindent 8 }}
+      containers:
+        - name: mediaserver
+          securityContext:
+            {{- toYaml .Values.mediaserver.securityContext | nindent 12 }}
+          image: "{{ .Values.mediaserver.image.repository }}:{{ .Values.mediaserver.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.mediaserver.image.pullPolicy }}
+          ports:
+            - name: port1
+              containerPort: {{ .Values.mediaserver.service.ports.port1.containerPort }}
+              protocol: {{ .Values.mediaserver.service.ports.port1.protocol }}
+          resources:
+            {{- toYaml .Values.mediaserver.resources | nindent 12 }}
+          {{- with .Values.mediaserver.envVars }}
+          env:
+            - name: MTX_PROTOCOLS
+              value: {{ .MTX_PROTOCOLS | quote }}
+            - name: MTX_WEBRTCADDITIONALHOSTS
+              value: {{ .MTX_WEBRTCADDITIONALHOSTS | quote }}
+          {{- end }}

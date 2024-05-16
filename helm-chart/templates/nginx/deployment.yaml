@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "nginx.fullname" . }}
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    {{- include "nginx.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.nginx.autoscaling.enabled }}
+  replicas: {{ .Values.nginx.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "nginx.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "nginx.labels" . | nindent 8 }}
+    spec:
+      {{- with .Values.nginx.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.enablerNodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if not .Values.enablerNodeSelector }}
+        {{- with .Values.nginx.nodeSelector }}
+      nodeSelector:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- end }}
+      {{- with .Values.nginx.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nginx.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.nginx.podSecurityContext | nindent 8 }}
+      containers:
+        - name: nginx
+          securityContext:
+            {{- toYaml .Values.nginx.securityContext | nindent 12 }}
+          image: "{{ .Values.nginx.image.repository }}:{{ .Values.nginx.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.nginx.image.pullPolicy }}
+          ports:
+            - name: port1
+              containerPort: {{ .Values.nginx.service.ports.port1.containerPort }}
+              protocol: {{ .Values.nginx.service.ports.port1.protocol }}
+          resources:
+            {{- toYaml .Values.nginx.resources | nindent 12 }}
+          {{- with .Values.nginx.envVars }}
+          env:
+            - name: EXAMPLE_ENV_VAR
+              value: {{ .exampleEnvVar | quote }}
+          {{- end }}
+          volumeMounts:
+            - name: {{ include "nginx.fullname" . }}-hls-files
+              mountPath: {{ .Values.nginx.volumes.hlsFiles.mountPath }}
+              readOnly: false
+            - name: {{ include "nginx.fullname" . }}-nginx-config
+              mountPath: {{ .Values.nginx.configs.nginxConfig.mountPath }}
+              subPath: default.conf
+      volumes:
+        - name: {{ include "nginx.fullname" . }}-hls-files
+          persistentVolumeClaim:
+            claimName: {{ .Values.volumes.hlsFiles.name }}-pvc
+        - name: {{ include "nginx.fullname" . }}-nginx-config
+          configMap:
+            name: {{ include "runner.fullname" . }}-nginx-config

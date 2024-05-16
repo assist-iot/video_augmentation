@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "nginx.fullname" . }}
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    {{- include "nginx.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.nginx.service.type }}
+  ports:
+    - name: port1
+      port: {{ .Values.nginx.service.ports.port1.port }}
+      targetPort: {{ .Values.nginx.service.ports.port1.targetPort }}
+      protocol: {{ .Values.nginx.service.ports.port1.protocol }}
+      {{- if and (or (eq .Values.nginx.service.type "NodePort") (eq .Values.nginx.service.type "LoadBalancer")) (not (empty .Values.nginx.service.ports.port1.nodePort)) }}
+      nodePort: {{ .Values.nginx.service.ports.port1.nodePort }}
+      {{- end }}
+  selector:
+    {{- include "nginx.selectorLabels" . | nindent 4 }}

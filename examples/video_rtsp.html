@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Reproductor de video RTSP con Flowplayer</title>
+    <link rel="stylesheet" href="//cdn.flowplayer.com/releases/native/3/stable/style/flowplayer.css">
+    <script src="//cdn.flowplayer.com/releases/native/3/stable/flowplayer.min.js"></script>
+    <!-- Optional plugins -->
+    <script src="//cdn.flowplayer.com/releases/native/3/stable/plugins/hls.min.js"></script>
+</head>
+<body>
+    <!-- Agrega un contenedor donde se incrustará el reproductor -->
+    <div id="player"></div>
+
+    <script>
+        // Inicializa Flowplayer
+        flowplayer('#player', {
+            splash: true,
+            ratio: 16/9,
+            clip: {
+                sources: [{
+                    type: "video/rtsp",
+                    src: "rtsp://localhost:8554/rtg01/single"
+                }]
+            },
+            live: true
+        });
+    </script>
+</body>
+</html>
+

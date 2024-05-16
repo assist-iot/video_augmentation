@@ -1,0 +1,5 @@
+# syntax=docker/dockerfile:1
+
+ARG TAG=
+FROM  gitlab.assist-iot.eu:5050/wp7/pilot-1/container-detection:${TAG}
+COPY ./samples/ /run/media/videos

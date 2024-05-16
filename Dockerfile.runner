@@ -1,0 +1,60 @@
+# syntax=docker/dockerfile:1
+
+# Comments are provided throughout this file to help you get started.
+# If you need more help, visit the Dockerfile reference guide at
+# https://docs.docker.com/go/dockerfile-reference/
+
+# Want to help us make this template better? Share your feedback here: https://forms.gle/ybq9Krt8jtBL3iCk7
+
+ARG TF_VERSION=2.12.0
+ARG VARIANT=
+FROM tensorflow/tensorflow:${TF_VERSION}${VARIANT} AS base
+
+# Prevents Python from writing pyc files.
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Keeps Python from buffering stdout and stderr to avoid situations where
+# the application crashes without emitting any logs due to buffering.
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /home/tensorflow/tmp
+
+# Create a non-privileged user that the app will run under.
+# See https://docs.docker.com/go/dockerfile-user-best-practices/
+ARG UID=10001
+RUN adduser \
+  --disabled-password \
+  --gecos "" \
+  --home "/nonexistent" \
+  --shell "/sbin/nologin" \
+  --no-create-home \
+  --uid "${UID}" \
+  tensorflow
+
+# ubuntu 18.04 docker image is broken due to nvidia cuda repositories so remove them before apt-get update (https://forums.developer.nvidia.com/t/18-04-cuda-docker-image-is-broken/212892/9)
+RUN rm -f /etc/apt/sources.list.d/cuda.list && rm -f /etc/apt/sources.list.d/nvidia-ml.list
+
+# Install required libs
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends git libgl1 libglib2.0-0 protobuf-compiler wget ffmpeg \
+  && apt-get clean
+
+# Redefine the arg so it can be used inside de build script
+ARG TF_VERSION=$TF_VERSION
+
+# Install object detection package
+RUN  pip install opencv-python \
+  # Remove this library to run tensorflow in docker (https://stackoverflow.com/questions/65405705/undefined-symbol-zn10tensorflow8opkernel11tracestringepns-15opkernelcontexteb)
+  &&  rm -rf /usr/local/lib/python*/dist-packages/tensorflow/core/kernels/libtfkernel_sobol_op.so
+
+# install extras for RTSP brodcasts
+
+# Switch to the non-privileged user to run the application.
+#USER tensorflow
+WORKDIR /home/tensorflow
+
+# Copy the source code into the container.
+COPY ./model ./model
+COPY ./src ./scripts
+ENV TF_ENABLE_ONEDNN_OPTS=0
+CMD ["bash", "-c", "python -m scripts.video_from_stream -i \"$INPUT_STREAM\" --sync_fps \"${SYNC_FPS:-false}\" --media_server_host \"${MEDIA_SERVER_HOST}\" --media_server_rtsp_port \"${MEDIA_SERVER_RTSP_PORT:-8554}\" --crane_name \"${CRANE_NAME}\" --loop \"${LOOP_VIDEO:-false}\" --spreader \"${SHOW_SPREADER:-false}\"  -t -1 --scheme \"${SCHEME:-rtsp}\" -s \"${SKIP_FRAME_PERC:-50}\" "]

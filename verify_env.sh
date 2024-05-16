@@ -1,0 +1,1 @@
+docker run  --rm test_env python -m object_detection.model_lib_tf2_test

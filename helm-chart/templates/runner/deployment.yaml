@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "runner.fullname" . }}
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    {{- include "runner.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.runner.autoscaling.enabled }}
+  replicas: {{ .Values.runner.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "runner.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "runner.labels" . | nindent 8 }}
+    spec:
+      {{- with .Values.runner.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.enablerNodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if not .Values.enablerNodeSelector }}
+        {{- with .Values.runner.nodeSelector }}
+      nodeSelector:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- end }}
+      {{- with .Values.runner.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.runner.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.runner.podSecurityContext | nindent 8 }}
+      containers:
+        - name: runner
+          securityContext:
+            {{- toYaml .Values.runner.securityContext | nindent 12 }}
+          image: "{{ .Values.runner.image.repository }}:{{ .Values.runner.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.runner.image.pullPolicy }}
+          ports:
+            - name: port1
+              containerPort: {{ .Values.runner.service.ports.port1.containerPort }}
+              protocol: {{ .Values.runner.service.ports.port1.protocol }}
+          resources:
+            {{- toYaml .Values.runner.resources | nindent 12 }}
+          env:
+            - name: MEDIA_SERVER_HOST
+              value: {{ include "mediaserver.fullname" . }}
+          {{- with .Values.runner.envVars }}
+            - name: INPUT_STREAM
+              value: {{ .INPUT_STREAM | quote }}
+            - name: CRANE_NAME
+              value: {{ .CRANE_NAME | quote }}
+            - name: LOOP_VIDEO
+              value: {{ .LOOP_VIDEO | quote }}
+            - name: SCHEME
+              value: {{ .SCHEME | quote }}
+            - name: SKIP_FRAME_PERC
+              value: {{ .SKIP_FRAME_PERC | quote }}
+              
+          {{- end }}
+          volumeMounts:
+            - name: {{ include "runner.fullname" . }}-videos
+              mountPath: {{ .Values.runner.volumes.videos.mountPath }}
+              readOnly: true
+            - name: {{ include "runner.fullname" . }}-hls-files
+              mountPath: {{ .Values.runner.volumes.hlsFiles.mountPath }}
+              readOnly: false
+      volumes:
+        - name: {{ include "runner.fullname" . }}-videos
+          persistentVolumeClaim:
+            claimName: {{ .Values.volumes.videos.name }}-pvc
+        - name: {{ include "runner.fullname" . }}-hls-files
+          persistentVolumeClaim:
+            claimName: {{ .Values.volumes.hlsFiles.name }}-pvc
